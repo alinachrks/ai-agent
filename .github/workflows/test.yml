@@ -1,4 +1,4 @@
-name: Run Python Script
+name: Run Advanced Python Script
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  run-script:
+  run-advanced-script:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        # Устанавливаем зависимости, если нужно
-        # pip install -r requirements.txt
+        pip install requests numpy pandas
 
-    - name: Run Python script
-      run: python script.py
+    - name: Run Advanced Python script
+      run: python advanced_script.py
