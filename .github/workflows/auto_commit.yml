@@ -1,14 +1,14 @@
-name: Auto Commit Report
+name: Auto Update Code with Gemini
 
 on:
+  schedule:
+    - cron: '0 * * * *'  # Запуск каждый час
   push:
     branches:
       - main
-  schedule:
-    - cron: '0 0 * * *'  # Запуск ежедневно в полночь
 
 jobs:
-  auto_commit:
+  update_code:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,13 +20,12 @@ jobs:
           python-version: '3.8'
 
       - name: Install dependencies
-        run: |
-          pip install pandas numpy seaborn scikit-learn matplotlib requests
+        run: pip install -r requirements.txt
 
-      - name: Run analysis
+      - name: Run analysis and update code
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
+        run: python src/main.py
 
       - name: Commit and push changes
         env:
@@ -34,6 +33,7 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add report.md eda_plot.png
-          git commit -m 'Automated data analysis update' || echo "No changes to commit"
+          git add src/model_training.py report.md
+          COMMIT_MESSAGE=$(python src/commit_message.py)
+          git commit -m "$COMMIT_MESSAGE" || echo "No changes to commit"
           git push origin main
