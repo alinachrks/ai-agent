@@ -23,7 +23,7 @@ def main():
         return
 
     print("📊 Выполняем анализ данных (EDA)...")
-    exploratory_data_analysis(X_train, y_train)  # Генерируем графики и статистику
+    exploratory_data_analysis(X_train)  # Передаём только признаки
 
     print("🎯 Обучаем модель...")
     model = train_model(X_train, y_train)
@@ -45,4 +45,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
