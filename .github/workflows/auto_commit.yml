@@ -73,4 +73,3 @@ jobs:
           
           # Пуш изменений в репозиторий
           git push origin main || echo "No changes to push"
-
