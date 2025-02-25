@@ -26,9 +26,8 @@ def exploratory_data_analysis(df, report_path="report.md", output_dir="eda_outpu
     stats_summary = df.describe()
 
     # Корреляционная матрица
-    correlation_matrix = df.corr()
     plt.figure(figsize=(10, 6))
-    sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
     plt.title("Матрица корреляции")
     correlation_plot_path = os.path.join(output_dir, "correlation_matrix.png")
     plt.savefig(correlation_plot_path)
@@ -40,11 +39,11 @@ def exploratory_data_analysis(df, report_path="report.md", output_dir="eda_outpu
     plt.savefig(histograms_plot_path)
     plt.close()
 
-    # Парные графики для первых 5 признаков
-    selected_columns = df.columns[:5]
-    sns.pairplot(df[selected_columns])
+    # Парные графики (если колонок меньше 6, иначе первые 5)
+    selected_columns = df.columns[:5] if len(df.columns) > 5 else df.columns
+    pairplot_fig = sns.pairplot(df[selected_columns], hue=df.columns[-1])
     pairplot_path = os.path.join(output_dir, "pairplot.png")
-    plt.savefig(pairplot_path)
+    pairplot_fig.savefig(pairplot_path)  # Теперь корректный вызов
     plt.close()
 
     # Запись отчёта
@@ -56,33 +55,10 @@ def exploratory_data_analysis(df, report_path="report.md", output_dir="eda_outpu
         f.write("### Основные статистики\n")
         f.write(f"{stats_summary.to_string()}\n\n")
         f.write("### Корреляция между признаками\n")
-        f.write(f"{correlation_matrix.to_string()}\n\n")
+        f.write(f"{df.corr().to_string()}\n\n")
         f.write("### Визуализации\n")
         f.write(f"![Матрица корреляции]({correlation_plot_path})\n")
         f.write(f"![Гистограммы]({histograms_plot_path})\n")
         f.write(f"![Парные графики]({pairplot_path})\n")
 
     print(f"📊 Анализ данных завершён. Отчёт сохранён в {report_path}")
-= sns.pairplot(df, hue=df.columns[-1])
-    pairplot.fig.savefig("eda_pairplot.png")
-    
-    # Тепловая карта корреляций
-    corr_matrix = df.corr()
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
-    plt.title("Тепловая карта корреляции")
-    plt.savefig("eda_correlation_heatmap.png")
-    
-    # Гистограммы распределений
-    df.hist(figsize=(10, 8), bins=20, grid=False)
-    plt.suptitle("Гистограммы распределений признаков")
-    plt.savefig("eda_histograms.png")
-
-    # График распределения для каждого признака
-    for column in df.columns[:-1]:  # Исключаем целевую переменную
-        plt.figure(figsize=(6, 4))
-        sns.histplot(df[column], kde=True)
-        plt.title(f"Распределение {column}")
-        plt.savefig(f"eda_{column}_distribution.png")
-
-    return report
