@@ -9,23 +9,24 @@ from model_training import train_model
 from code_updater import update_code
 from commit_message import generate_commit_message
 
-# Загрузка и предобработка данных
-def load_and_preprocess_data():
-    # Загрузка набора данных из OpenML (ID 1464)
-    dataset = openml.datasets.get_dataset(1464)
+# Загрузка и предобработка данных с учетом гибкости
+def load_and_preprocess_data(dataset_id):
+    # Загрузка набора данных из OpenML (по ID)
+    dataset = openml.datasets.get_dataset(dataset_id)
     df, *_ = dataset.get_data()
 
     # Просмотр первых нескольких строк для понимания структуры
     print(df.head())
 
-    # Преобразуем категориальные данные в числовые с помощью LabelEncoder
+    # Автоматическая обработка категориальных данных
     label_encoder = LabelEncoder()
     for column in df.select_dtypes(include=["object"]).columns:
         df[column] = label_encoder.fit_transform(df[column])
 
-    # Разделяем данные на признаки и целевую переменную (например, прогнозирование класса)
-    features = df.drop('Class', axis=1)  # Предполагаем, что 'Class' - целевая переменная
-    target = df['Class']
+    # Разделяем данные на признаки и целевую переменную
+    target_column = 'Class' if 'Class' in df.columns else df.columns[-1]  # Если 'Class' нет, берем последнюю колонку как целевую
+    features = df.drop(target_column, axis=1)  
+    target = df[target_column]
 
     # Разделяем данные на обучающую и тестовую выборки
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.3, random_state=42)
@@ -33,10 +34,12 @@ def load_and_preprocess_data():
     return X_train, X_test, y_train, y_test
 
 if __name__ == "__main__":
+    dataset_id = 1464
+    
     # Загружаем и предобрабатываем данные
-    X_train, X_test, y_train, y_test = load_and_preprocess_data()
+    X_train, X_test, y_train, y_test = load_and_preprocess_data(dataset_id)
 
-    # Обучаем модель RandomForest
+    # Обучаем модель
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
