@@ -43,12 +43,14 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          # Обработка ошибок при выполнении src/main.py
           python src/main.py || (echo "Error running src/main.py" && exit 1)
 
       - name: Generate commit message using Gemini
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          # Генерация сообщения для коммита
           COMMIT_MESSAGE=$(python src/commit_message.py || echo "Automated update using Gemini")
           echo "Generated commit message: $COMMIT_MESSAGE"
           echo "$COMMIT_MESSAGE" > commit_message.txt
@@ -57,12 +59,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Настройка git
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           git add src/model_training.py report.md || echo "No changes to add"
+          
+          # Проверка наличия изменений и коммит
           if [ -s commit_message.txt ]; then
             git commit -F commit_message.txt || echo "No changes to commit"
           else
             echo "No commit message generated, skipping commit."
           fi
+          
+          # Пуш изменений в репозиторий
           git push origin main || echo "No changes to push"
