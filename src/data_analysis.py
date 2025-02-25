@@ -6,11 +6,15 @@ import os
 def exploratory_data_analysis(df, report_path="report.md", output_dir="eda_outputs"):
     """
     Выполняет анализ данных (EDA), создаёт графики и записывает отчёт.
-    :param df: DataFrame с данными
+    :param df: DataFrame с признаками
     :param report_path: Путь для сохранения отчёта
     :param output_dir: Директория для сохранения графиков
     """
     print("🔍 Выполняем анализ данных...")
+
+    # Проверяем тип данных, чтобы убедиться, что передан DataFrame
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Ошибка: ожидался pandas DataFrame, а получено {type(df)}")
 
     # Создаём директорию для графиков, если её нет
     os.makedirs(output_dir, exist_ok=True)
@@ -41,7 +45,7 @@ def exploratory_data_analysis(df, report_path="report.md", output_dir="eda_outpu
 
     # Парные графики (если колонок меньше 6, иначе первые 5)
     selected_columns = df.columns[:5] if len(df.columns) > 5 else df.columns
-    pairplot_fig = sns.pairplot(df[selected_columns], hue=df.columns[-1])
+    pairplot_fig = sns.pairplot(df[selected_columns])
     pairplot_path = os.path.join(output_dir, "pairplot.png")
     pairplot_fig.savefig(pairplot_path)  # Теперь корректный вызов
     plt.close()
