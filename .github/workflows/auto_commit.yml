@@ -1,0 +1,35 @@
+name: Auto Commit Report
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 0 * * *'  # Запуск ежедневно в полночь
+
+jobs:
+  auto_commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy seaborn scikit-learn matplotlib
+
+      - name: Run analysis
+        run: python main.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add report.md eda_plot.png
+          git commit -m 'Automated data analysis update' || echo "No changes to commit"
+          git push
