@@ -27,7 +27,20 @@ jobs:
             echo "requirements.txt not found!" && exit 1
           fi
 
+      - name: Verify API Key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "❌ API-ключ для Gemini отсутствует! Проверьте GitHub Secrets."
+            exit 1
+          else
+            echo "✅ API-ключ загружен, длина: ${#GEMINI_API_KEY} символов"
+          fi
+
       - name: Run update script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python src/main.py
 
       - name: Show Git status
@@ -52,4 +65,3 @@ jobs:
 
           git commit -m "Auto-update commit"
           git push origin main
-
