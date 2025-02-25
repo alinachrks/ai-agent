@@ -2,6 +2,15 @@ import requests
 import os
 from config import GEMINI_API_KEY
 
+# Проверяем, передаётся ли ключ в окружение
+gemini_key = os.environ.get("GEMINI_API_KEY")
+
+if not gemini_key:
+    raise ValueError("❌ API-ключ для Gemini отсутствует! Проверьте, что он передаётся в окружение.")
+
+print(f"✅ API-ключ загружен, длина: {len(gemini_key)} символов")
+
+
 # Новый формат запроса к Gemini API
 def query_gemini(prompt):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
