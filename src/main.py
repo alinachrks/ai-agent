@@ -4,59 +4,71 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import LabelEncoder
+
+# Импортируем локальные модули
 from data_analysis import load_data, exploratory_data_analysis
 from model_training import train_model
 from code_updater import update_code
 from commit_message import generate_commit_message
 
-# Загрузка и предобработка данных с учетом гибкости
+
 def load_and_preprocess_data(dataset_id):
-    # Загрузка набора данных из OpenML (по ID)
+    """
+    Загружает и предобрабатывает данные из OpenML, автоматически кодируя категориальные переменные.
+    """
+    # Загружаем набор данных
     dataset = openml.datasets.get_dataset(dataset_id)
     df, *_ = dataset.get_data()
 
-    # Просмотр первых нескольких строк для понимания структуры
+    # Просмотр первых строк для понимания структуры
+    print("🔹 Первые строки датасета:")
     print(df.head())
 
-    # Автоматическая обработка категориальных данных
+    # Обрабатываем категориальные данные с LabelEncoder
     label_encoder = LabelEncoder()
     for column in df.select_dtypes(include=["object"]).columns:
         df[column] = label_encoder.fit_transform(df[column])
 
-    # Разделяем данные на признаки и целевую переменную
-    target_column = 'Class' if 'Class' in df.columns else df.columns[-1]  # Если 'Class' нет, берем последнюю колонку как целевую
-    features = df.drop(target_column, axis=1)  
+    # Определяем целевую переменную (если 'Class' нет, берём последнюю колонку)
+    target_column = "Class" if "Class" in df.columns else df.columns[-1]
+    features = df.drop(target_column, axis=1)
     target = df[target_column]
 
-    # Разделяем данные на обучающую и тестовую выборки
+    # Разделяем на обучающую и тестовую выборки
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.3, random_state=42)
 
     return X_train, X_test, y_train, y_test
 
+
 if __name__ == "__main__":
-    dataset_id = 1464
-    
-    # Загружаем и предобрабатываем данные
+    dataset_id = 1464  # ID набора данных OpenML
+
+    print("📥 Загрузка и предобработка данных...")
     X_train, X_test, y_train, y_test = load_and_preprocess_data(dataset_id)
 
-    # Обучаем модель
+    print("🎯 Обучение модели...")
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
-    # Оценка модели
+    print("📊 Оценка модели...")
     y_pred = model.predict(X_test)
-
-    # Генерация отчета о классификации
     report = classification_report(y_test, y_pred)
-    with open("report.md", "w") as f:
+
+    # Сохранение отчёта
+    report_path = "report.md"
+    with open(report_path, "w") as f:
         f.write("## Отчет по классификации\n")
         f.write(f"**Модель:** RandomForestClassifier\n")
         f.write(f"**Оценка модели:**\n{report}\n")
 
-    # Запуск функции обновления кода
+    print(f"✅ Отчет сохранен в {report_path}")
+
+    # Запускаем обновление кода через Gemini API
+    print("🔄 Обновление кода через Gemini...")
     update_code()
 
-    # Генерация сообщения для коммита
+    # Генерируем сообщение для коммита
     commit_msg = generate_commit_message(changes_summary="Обновление модели для анализа данных OpenML")
 
     print(f"✅ Обновление завершено. Название коммита: {commit_msg}")
+
