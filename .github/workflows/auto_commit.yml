@@ -21,15 +21,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas numpy seaborn scikit-learn matplotlib
+          pip install pandas numpy seaborn scikit-learn matplotlib requests
 
       - name: Run analysis
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
 
       - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           git add report.md eda_plot.png
           git commit -m 'Automated data analysis update' || echo "No changes to commit"
-          git push
+          git push origin main
