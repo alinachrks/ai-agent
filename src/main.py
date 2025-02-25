@@ -1,7 +1,8 @@
-from src.data_analysis import load_data, exploratory_data_analysis
-from src.model_training import train_model
-from src.code_updater import update_code
-from src.commit_message import generate_commit_message
+from data_analysis import load_data, exploratory_data_analysis
+from model_training import train_model
+from code_updater import update_code
+from commit_message import generate_commit_message
+
 
 if __name__ == "__main__":
     df = load_data()
