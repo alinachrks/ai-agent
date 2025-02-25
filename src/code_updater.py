@@ -15,23 +15,34 @@ def query_gemini(prompt):
     try:
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()  # Проверка на успешный ответ
-        return response.json()["candidates"][0]["output"]
+        response_json = response.json()
+        candidates = response_json.get("candidates", [])
+        if candidates:
+            return candidates[0].get("output", "")
+        else:
+            return "Ошибка API: Gemini не вернул кандидатов."
     except requests.exceptions.RequestException as e:
-        return f"Ошибка при запросе к API: {e}"
+        return f"Ошибка API: {e}"
 
 # Функция для улучшения кода обучения модели
 def update_code():
+    file_path = "src/model_training.py"
+    
+    if not os.path.exists(file_path):
+        print(f"Ошибка: файл {file_path} не найден.")
+        return False
+    
     try:
         # Читаем текущий код из файла
-        with open("src/model_training.py", "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             current_code = f.read()
 
         # Промт для запроса к Gemini API с улучшенной формулировкой
         prompt = f"""
         Вы являетесь экспертом в области машинного обучения и разработки программного обеспечения.
-        Вашей задачей является улучшить код Python, который отвечает за обучение модели машинного обучения.
-        Код может включать в себя любые аспекты:
-        - Оптимизация производительности
+        Ваша задача - улучшить код Python, отвечающий за обучение модели машинного обучения.
+        Код может включать в себя:
+        - Оптимизацию производительности
         - Улучшение читаемости и поддерживаемости
         - Добавление новых полезных функций или методов
         - Применение современных методов и библиотек
@@ -50,22 +61,19 @@ def update_code():
 
         new_code = query_gemini(prompt)
 
-        if "Ошибка API" in new_code:
+        if "Ошибка API" in new_code or not new_code.strip().startswith("import"):
             print(f"Ошибка при получении ответа от Gemini: {new_code}")
             return False
 
         # Записываем улучшенный код в файл
-        with open("src/model_training.py", "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_code)
 
-        print("Код был успешно обновлен с улучшениями и новыми визуализациями.")
+        print("✅ Код был успешно обновлен с улучшениями и новыми визуализациями.")
         return True
 
-    except FileNotFoundError:
-        print("Ошибка: файл src/model_training.py не найден.")
-        return False
     except Exception as e:
-        print(f"Неизвестная ошибка: {e}")
+        print(f"❌ Неизвестная ошибка: {e}")
         return False
 
 if __name__ == "__main__":
