@@ -36,6 +36,9 @@ jobs:
             echo "Error: src/main.py not found!" && exit 1
           fi
 
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
+
       - name: Run analysis and update code
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
