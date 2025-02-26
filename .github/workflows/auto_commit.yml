@@ -27,28 +27,27 @@ jobs:
             echo "requirements.txt not found!" && exit 1
           fi
 
-      - name: Verify installed dependencies
-        run: pip list
-
-      - name: Check if src/main.py exists
+      - name: Verify API Key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ ! -f src/main.py ]; then
-            echo "Error: src/main.py not found!" && exit 1
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "❌ API-ключ для Gemini отсутствует! Проверьте GitHub Secrets."
+            exit 1
+          else
+            echo "✅ API-ключ загружен, длина: ${#GEMINI_API_KEY} символов"
           fi
 
-      - name: Run analysis and update code
+      - name: Run update script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          python src/main.py || (echo "Error running src/main.py" && exit 1)
+        run: python src/main.py
 
-      - name: Generate commit message using Gemini
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          COMMIT_MESSAGE=$(python src/commit_message.py || echo "Automated update using Gemini")
-          echo "Generated commit message: $COMMIT_MESSAGE"
-          echo "$COMMIT_MESSAGE" > commit_message.txt
+      - name: Show Git status
+        run: git status
+
+      - name: Show Git diff
+        run: git diff
 
       - name: Commit and push changes
         env:
@@ -56,10 +55,13 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add src/model_training.py report.md || echo "No changes to add"
-          if [ -s commit_message.txt ]; then
-            git commit -F commit_message.txt || echo "No changes to commit"
-          else
-            echo "No commit message generated, skipping commit."
+          
+          git add .
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
           fi
-          git push origin main || echo "No changes to push"
+
+          git commit -m "Auto-update commit"
+          git push origin main

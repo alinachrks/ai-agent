@@ -1,0 +1,22 @@
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          
+          git add reports/db_report.md
+          
+          # Проверяем, есть ли изменения
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          
+          git commit -m "Auto-update: отчёт о БД"
+
+          # Обновляем локальную ветку, чтобы избежать конфликтов
+          git pull --rebase origin main
+          
+          # Пробуем пушить снова
+          git push origin main
