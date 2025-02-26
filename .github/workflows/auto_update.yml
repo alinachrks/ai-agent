@@ -1,0 +1,63 @@
+name: Auto Update Report
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Запуск каждый час
+  push:
+    branches:
+      - main
+
+jobs:
+  update_report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found!" && exit 1
+          fi
+
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
+
+      - name: Run data analysis and report generation
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+        run: python src/main.py
+
+      - name: Show Git status
+        run: git status
+
+      - name: Show Git diff
+        run: git diff
+
+      - name: Commit and push changes if report was updated
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          
+          git add reports/data_report.md reports/images/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Auto-update: отчёт обновлён"
+          git pull --rebase origin main
+          git push origin main
