@@ -19,12 +19,15 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install dependencies
+      - name: Clear pip cache and install dependencies
         run: |
+          echo "🚀 Очистка кэша pip..."
+          pip cache purge
+          
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           else
-            echo "requirements.txt not found!" && exit 1
+            echo "❌ requirements.txt не найден!" && exit 1
           fi
           pip install python-dotenv psycopg2-binary  # Фикс ошибки отсутствия зависимостей
 
@@ -56,7 +59,13 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          
+
+          # Проверяем, существует ли файл отчёта
+          if [ ! -f reports/data_report.md ]; then
+            echo "❌ Ошибка: файл отчёта отсутствует! Выход..."
+            exit 1
+          fi
+
           git add reports/data_report.md reports/images/ || echo "❌ Ошибка: файлы не найдены"
 
           if git diff --staged --quiet; then
@@ -67,3 +76,6 @@ jobs:
           git commit -m "Auto-update: отчёт обновлён"
           git pull --rebase origin main
           git push origin main || echo "❌ Ошибка: не удалось отправить изменения"
+
+      - name: Success message
+        run: echo "✅ Автообновление отчёта успешно завершено!"
