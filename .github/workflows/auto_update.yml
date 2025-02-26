@@ -26,6 +26,10 @@ jobs:
           else
             echo "requirements.txt not found!" && exit 1
           fi
+          pip install python-dotenv psycopg2-binary  # Фикс ошибки отсутствия зависимостей
+
+      - name: Show installed packages
+        run: pip list  # Отладочная информация
 
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
@@ -36,7 +40,9 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASS: ${{ secrets.DB_PASS }}
-        run: python src/main.py
+        run: |
+          echo "🚀 Запуск анализа данных..."
+          python src/main.py || (echo "❌ Ошибка при выполнении main.py" && exit 1)
 
       - name: Show Git status
         run: git status
@@ -51,13 +57,13 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           
-          git add reports/data_report.md reports/images/
-          
+          git add reports/data_report.md reports/images/ || echo "❌ Ошибка: файлы не найдены"
+
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "✅ Нет изменений, коммит не нужен."
             exit 0
           fi
 
           git commit -m "Auto-update: отчёт обновлён"
           git pull --rebase origin main
-          git push origin main
+          git push origin main || echo "❌ Ошибка: не удалось отправить изменения"
