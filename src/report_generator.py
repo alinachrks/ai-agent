@@ -9,15 +9,26 @@ REPORT_FILE = os.path.join(REPORTS_DIR, "data_report.md")
 def generate_report():
     """Генерирует отчёт с новыми инсайтами по данным."""
     
-    # Запускаем анализ данных
-    exploratory_data_analysis()
+    # Проверяем существование папки reports/
+    if not os.path.exists(REPORTS_DIR):
+        print("❌ Папка reports/ отсутствует. Создаём...")
+        os.makedirs(REPORTS_DIR, exist_ok=True)
 
+    # Проверяем существование отчёта
+    if not os.path.exists(REPORT_FILE):
+        print("📊 Отчёт отсутствует, запускаем анализ данных...")
+        exploratory_data_analysis()
+    
+    print(f"📝 Читаем текущий отчёт из {REPORT_FILE}...")
+    
     # Читаем текущий отчёт
+    report_content = ""
     if os.path.exists(REPORT_FILE):
         with open(REPORT_FILE, "r", encoding="utf-8") as f:
-            report_content = f.read()
-    else:
-        report_content = "❌ Ошибка: отчёт не найден."
+            report_content = f.read().strip()
+    
+    if not report_content:
+        print("⚠️ Отчёт пустой! Возможно, произошла ошибка в анализе данных.")
 
     # Генерируем новые выводы
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -25,7 +36,7 @@ def generate_report():
     ### 📈 Новые инсайты (автоанализ)
     📅 Дата обновления: {timestamp}
 
-    - Анализ данных показал, что {len(report_content.splitlines())} строк в отчёте.
+    - Количество строк в отчёте: {len(report_content.splitlines())}
     - Корреляционные данные выявили потенциальные зависимости в датасете.
     - Требуется дополнительный анализ для выявления аномалий.
     """
@@ -33,6 +44,8 @@ def generate_report():
     # Добавляем инсайты к отчёту
     updated_report = report_content + "\n\n" + insights
 
+    print(f"📝 Запись обновлённого отчёта в {REPORT_FILE}...")
+    
     # Записываем обновлённый отчёт
     with open(REPORT_FILE, "w", encoding="utf-8") as f:
         f.write(updated_report)
@@ -41,3 +54,4 @@ def generate_report():
 
 if __name__ == "__main__":
     generate_report()
+
