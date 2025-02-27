@@ -1,0 +1,221 @@
+from docx import Document
+from docx.shared import Pt
+import os
+import pandas as pd
+import time
+import random
+from datetime import datetime
+from sqlalchemy import inspect
+import requests
+import json
+
+# Подключение к базе данных
+inspector = inspect(engine)
+tables = inspector.get_table_names()
+
+# Файл отчёта
+report_filename = "reports_db.docx"
+error_log = "error_log.txt"
+
+# API-ключ Gemini
+GEMINI_API_KEY = GEMINI_API_KEY
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+headers = {"Content-Type": "application/json"}
+
+# Лимит таблиц на одну пачку анализа
+TABLES_PER_BATCH = 2
+
+# Геометрические типы данных
+GEO_TYPES = {"geometry", "geography", "point", "geom", "coordinates"}
+
+# Создаём или открываем общий файл отчёта
+if os.path.exists(report_filename):
+    doc = Document(report_filename)
+else:
+    doc = Document()
+    doc.add_heading("Анализ базы данных", 0)
+    doc.add_paragraph(f"Дата анализа: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+# Функция экспоненциальной задержки
+def exponential_backoff(retries, base_delay=2):
+    delay = base_delay * (2 ** retries) + random.uniform(0, 0.5)
+    time.sleep(delay)
+
+# Функция для конвертации Markdown-разметки в формат Word
+def add_markdown_text(doc, text):
+    seen_lines = set()  # Хранит уже добавленные строки
+    inside_code_block = False
+    code_block_lines = []
+
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        # Исключаем строки с заголовками в начале строки с двоеточием
+        if ":" in line:
+            parts = line.split(":")
+            if len(parts) > 1 and len(parts[0].split()) < 5:  # Если первая часть короткая (<= 5 слов), пропускаем её
+                line = parts[1].strip()
+
+        if not line or line in seen_lines:  # Пропускаем дубликаты
+            continue
+        seen_lines.add(line)
+
+        # Обработка кодовых блоков
+        if line.startswith("```"):  
+            if inside_code_block:
+                p = doc.add_paragraph("\n".join(code_block_lines))
+                run = p.runs[0]
+                run.font.name = "Courier New"
+                run.font.size = Pt(10)
+                code_block_lines = []
+            inside_code_block = not inside_code_block
+            continue  
+
+        if inside_code_block:
+            code_block_lines.append(line)
+            continue
+
+        # Обработка заголовков
+        if line.startswith("# "):
+            doc.add_heading(line[2:].strip(), level=1)
+        elif line.startswith("## "):
+            doc.add_heading(line[3:].strip(), level=2)
+        elif line.startswith("### "):
+            doc.add_heading(line[4:].strip(), level=3)
+
+        # Обработка списков
+        elif line.startswith(("- ", "* ")):
+            doc.add_paragraph(line[2:].strip(), style="ListBullet")
+
+        # Обработка жирного и курсива
+        elif "**" in line or "*" in line:
+            p = doc.add_paragraph()
+            parts = line.split("**")
+            for i, part in enumerate(parts):
+                run = p.add_run(part.strip())
+                if i % 2 == 1:
+                    run.bold = True
+
+            parts = line.split("*")
+            for i, part in enumerate(parts):
+                run = p.add_run(part.strip())
+                if i % 2 == 1:
+                    run.italic = True
+
+        # Обычный текст
+        else:
+            doc.add_paragraph(line)
+
+
+
+# Перебираем таблицы пачками
+for i in range(0, len(tables), TABLES_PER_BATCH):
+    batch = tables[i:i + TABLES_PER_BATCH]
+    print(f"🔍 Анализируем таблицы {i + 1} - {i + len(batch)} из {len(tables)}...")
+
+    for table in batch:
+        try:
+            safe_table_name = f'"{table}"'
+            columns = inspector.get_columns(table)
+            column_info = [f"{col['name']} - {col['type']}" for col in columns if str(col['type']).lower() not in GEO_TYPES]
+            column_text = "\n".join(column_info)
+
+            # Обрабатываем геоданные
+            geo_columns = [col['name'] for col in columns if str(col['type']).lower() in GEO_TYPES]
+            
+            # Загружаем данные
+            query = f"SELECT * FROM {safe_table_name} LIMIT 100"
+            df = pd.read_sql(query, engine)
+
+            # Создаём статистику
+            stats_text = ""
+            if not df.empty:
+                for col in df.columns:
+                    if df[col].dtype in ["int64", "float64"]:
+                        stats_text += f"- {col}: min={df[col].min()}, max={df[col].max()}, mean={df[col].mean():.2f}\n"
+                    elif df[col].dtype == "object":
+                        stats_text += f"- {col}: уникальных значений={df[col].nunique()}\n"
+
+            # Выбираем примеры данных
+            df_sample = df.head(5)
+            df_json = df_sample.to_json(orient="records", force_ascii=False)
+
+            # Обрабатываем геоданные
+            if geo_columns:
+                geo_info = "\n".join([f"- `{col}` содержит геоданные" for col in geo_columns])
+                stats_text += f"\n**Геоданные:**\n{geo_info}"
+            
+        except Exception as e:
+            df_json = "❌ Ошибка при чтении данных"
+            with open(error_log, "a", encoding="utf-8") as log:
+                log.write(f"Ошибка в таблице {table}: {str(e)}\n")
+
+        # Запрос к Gemini
+        prompt = f"""
+        Ты — эксперт по анализу данных. Твоя задача — сгенерировать **аналитический отчёт** по таблице `{table}`, который поможет **инженерам данных и аналитикам** в дальнейшей работе.  
+
+        ## 📊 **Общая информация**
+        - **Название таблицы:** `{table}`
+        - **Основное назначение данных** (определи, какие процессы или явления описывает эта таблица).
+
+        ## 📈 **Ключевые аналитические выводы**
+        - Определи **основные тренды и закономерности** в данных.
+        - Какие **ключевые показатели** можно извлечь из этой таблицы?
+        - Как эти данные могут быть использованы для **анализа городской среды**?
+
+        ## 🚨 **Возможные проблемы в данных**
+        - Выяви **структурные проблемы** (отсутствие данных, дубли, несоответствия).
+        - Какие **проблемы качества данных** могут повлиять на анализ?
+        - Какие **риски и ограничения** связаны с использованием этой таблицы?
+
+        ## 🛠 **Задачи для инженеров данных и аналитиков**
+        - Какие **дополнительные обработки данных** требуются?
+        - Как можно улучшить **качество и полноту** данных?
+        - Какие **методы очистки и трансформации** необходимы?
+
+        ## 🌍 **Применение в городской аналитике**
+        - Какие **городские задачи** можно решать с помощью этих данных?
+        - В каких **проектах или исследованиях** эти данные могут быть полезны?
+        - Если есть примеры, **лучшие мировые практики** анализа подобных данных.
+
+        ## 🔍 **Рекомендации и перспективы**
+        - Как можно **расширить или дополнить** данные?
+        - Какие **дополнительные источники** информации могут улучшить качество анализа?
+        - Какие новые **метрики и показатели** можно рассчитать?
+
+        ---
+
+        ⏳ **Важно:**
+        1. Не вставляй сырые данные или JSON!  
+        2. Оформляй отчёт **строго в Markdown**.  
+        3. Используй **структурированный анализ** без воды.  
+        """
+
+
+        data = {"contents": [{"parts": [{"text": prompt}]}]}
+
+        retries = 0
+        while retries < 5:
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            if response.status_code == 200:
+                analysis = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                break
+            else:
+                retries += 1
+                exponential_backoff(retries)
+                analysis = f"Ошибка анализа: {response.status_code} - {response.text}"
+
+        doc.add_page_break()
+        doc.add_heading(f"Анализ таблицы {table}", level=1)
+        doc.add_heading("Структура таблицы", level=2)
+        doc.add_paragraph(column_text)
+        doc.add_heading("Анализ данных", level=2)
+
+        add_markdown_text(doc, analysis)
+
+    doc.save(report_filename)
+    print(f"✅ Отчёт обновлён: {report_filename}")
+
+print(f"🎉 Анализ завершён. Итоговый файл: {report_filename}")
